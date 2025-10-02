@@ -6,6 +6,8 @@ import { PhysicsType } from "../PhysicsType";
 import { Vector } from "two.js/src/vector";
 import { Wall } from "./Wall";
 import { PhysicsEntity } from "../PhysicsEntity";
+import { Direction } from "../Direction";
+import { Force } from "../Force";
 
 export class Player extends Entity{
     override shape: Shape;
@@ -25,5 +27,21 @@ export class Player extends Entity{
     }
 
     override onCollideWith(entity: PhysicsEntity): void {
+    }
+
+    override applyForceMotion(): void {
+        let onGround = this.sideColliding(Direction.DOWN);
+        super.applyForceMotion();
+        if (!onGround) {
+            // let drag = 0.001 * Math.pow(this.velocity.x, 2) * this.getHeight();
+            this.addForce(new Force("air friction", new Vector(-this.velocity.x, 0), Math.abs(this.velocity.x) * 0.0025, 1));
+        }
+    }
+
+    jump() {
+        if (this.sideColliding(Direction.DOWN)) {
+            this.acceleration.clear();
+            this.addForce(new Force("jump", new Vector(0, -1), PLAYER_JUMP_HEIGHT, 1));
+        }
     }
 }

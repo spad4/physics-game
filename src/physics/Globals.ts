@@ -5,8 +5,10 @@ const PLAYER_SIZE: number = 25;
 const PLAYER_RESTITUTION: number = 1.0;
 const STICKY_THRESHOLD: number = 0.04
 
-const WALL_RESTITUTION: number = 0.4;
+const WALL_RESTITUTION: number = 0.1;
 const WALL_COLOR: string = "gray";
+
+const ICE_COLOR: string = "aliceblue"
 
 export { 
     PLAYER_COLOR, 
@@ -16,5 +18,6 @@ export {
     PLAYER_RESTITUTION, 
     STICKY_THRESHOLD, 
     WALL_RESTITUTION,
-    WALL_COLOR
+    WALL_COLOR,
+    ICE_COLOR
 }

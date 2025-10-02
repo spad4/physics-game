@@ -3,6 +3,7 @@ import { PhysicsType } from "./PhysicsType";
 import { Force } from "./Force";
 import { STICKY_THRESHOLD } from "./Globals";
 import { Player } from "./objects/Player";
+import { Direction } from "./Direction";
 
 export class PhysicsEntity {
 
@@ -24,6 +25,9 @@ export class PhysicsEntity {
     private halfWidth: number;
     private halfHeight: number;
 
+    private collisionSides: Direction[];
+
+
     constructor(type: PhysicsType, width: number, height: number, position: Vector, mass: number = 1, friction: number = 0.2, restitution: number = 0) {
         this.type = type;
         this.width = width;
@@ -37,6 +41,7 @@ export class PhysicsEntity {
         this.frictionCoefficient = friction;
         this.forces = new Map();
         this.restitution = restitution;
+        this.collisionSides = [];
     }
 
     getPhysicsType(): PhysicsType {
@@ -102,9 +107,6 @@ export class PhysicsEntity {
         if (!this.collidesWith(other)) {
             return false;
         }
-        if (other instanceof Player) {
-            console.log("player");
-        }
 
         // To find the side of entry calculate based on
         // the normalized sides
@@ -116,7 +118,7 @@ export class PhysicsEntity {
         var absDY = Math.abs(dy);
         
         // object approaching from corner
-        if (Math.abs(absDX - absDY) < 0.1) {
+        if (Math.abs(absDX - absDY) < 0.05) {
 
             if (dx > 0) {
                 this.position.x = other.getLeft() - this.halfWidth;
@@ -136,9 +138,11 @@ export class PhysicsEntity {
         else if (absDX > absDY) { // sides
             if (dx > 0) {
                 this.position.x = other.getLeft() - this.halfWidth;
+                this.collisionSides.push(Direction.RIGHT)
             }
             else {
                 this.position.x = other.getRight() + this.halfWidth;
+                this.collisionSides.push(Direction.LEFT)
             }
 
             // collisions - also does normal
@@ -165,7 +169,6 @@ export class PhysicsEntity {
             }
             this.addForce(new Force("collisionX", new Vector(normal.x, 0), myMomentum, 1));
 
-
             let otherRatio = (1 / other.mass) / totalMass;
             let otherMomentum = momentum * otherRatio * (1 + restitution);
             if (this.velocity.x < 0) {
@@ -179,9 +182,11 @@ export class PhysicsEntity {
             // positive Y (it's BELOW!)
             if (dy < 0) {
                 this.position.y = other.getBottom() + this.halfHeight;
+                this.collisionSides.push(Direction.UP)
             }
             else {
                 this.position.y = other.getTop() - this.halfHeight;
+                this.collisionSides.push(Direction.DOWN)
             }   
 
             // collisions
@@ -217,6 +222,7 @@ export class PhysicsEntity {
     }
 
     applyForceMotion() {
+        this.collisionSides = []
 
         this.acceleration.clear();
         // v = v(t-1) + a*t
@@ -242,5 +248,9 @@ export class PhysicsEntity {
     addForce(force: Force) {
         if (this.forces.has(force.id)) { return; }
         this.forces.set(force.id, force);
+    }
+
+    sideColliding(direction: Direction): boolean {
+        return this.collisionSides.includes(direction);
     }
 }

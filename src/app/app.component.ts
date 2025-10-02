@@ -12,6 +12,8 @@ import { PLAYER_JUMP_HEIGHT, PLAYER_MOVESPEED } from "../physics/Globals";
 import { Force } from "../physics/Force";
 import { Text } from "two.js/src/text";
 import { Heavy } from "../physics/objects/Heavy";
+import { Ice } from "../physics/objects/Ice";
+import { Direction } from "../physics/Direction";
 
 @Component({
   selector: "app-root",
@@ -34,6 +36,8 @@ export class AppComponent {
   playerForces: Text[] = [];
 
   drawableEntityCount = 0;
+
+  jumpPressed = false;
 
 
   @ViewChild("gameWindow") gameWindow!: ElementRef;
@@ -74,20 +78,27 @@ export class AppComponent {
     this.two.add(this.player.getShape());
     this.player.addForce(new Force("gravity", new Vector(0, 1), this.gravity * this.player.mass, -1));
 
-    let test = new Player(new Vector(900, 500));
-    this.two.add(test.getShape());
-    test.addForce(new Force("gravity", new Vector(0, 1), this.gravity * test.mass, -1));
-      // test.addForce(new Force("lft", new Vector(-1, 0), 1, 1));
+    // let test = new Player(new Vector(300, 500));
+    // this.two.add(test.getShape());
+    // test.addForce(new Force("gravity", new Vector(0, 1), this.gravity * test.mass, -1));
+    // this.dynamicEntities.push(test);
 
-    this.dynamicEntities.push(test);
+    // let wall = new Wall(new Vector(800, 600), 700, 50);
+    // this.two.add(wall.getShape());
+    // this.staticEntities.push(wall);
 
-    let wall = new Wall(new Vector(500, 600), 2000, 50);
-    this.two.add(wall.getShape());
-    this.staticEntities.push(wall);
+    let ice = new Wall(new Vector(100, 600), 2000, 50);
+    this.two.add(ice.getShape());
+    this.staticEntities.push(ice);
 
-    let wall2 = new Wall(new Vector(700, 550), 50, 50);
-    this.two.add(wall2.getShape());
-    this.staticEntities.push(wall2);
+    // let wall2 = new Wall(new Vector(700, 550), 50, 50);
+    // this.two.add(wall2.getShape());
+    // this.staticEntities.push(wall2);
+
+    
+    // let wall3 = new Wall(new Vector(100, 550), 50, 50);
+    // this.two.add(wall3.getShape());
+    // this.staticEntities.push(wall3);
 
 
     this.two.update();
@@ -103,12 +114,12 @@ export class AppComponent {
     })
 
     let velocity = this.player.velocity;
-    let velocityText = new Text(`velocity | ${velocity.x}, ${velocity.y}`, 100, 200);
+    let velocityText = new Text(`velocity | ${velocity.x}, ${velocity.y}`, 200, 200);
     this.playerForces.push(velocityText);
     this.two.add(velocityText);
     let i = 1;
     this.player.forces.forEach(force => {
-      let text = new Text(`${force.id} | ${force.direction.x * force.magnitude}, ${force.direction.y * force.magnitude} | ${force.framesLeft}`, 100, 200 + 20 * i);
+      let text = new Text(`${force.id} | ${force.direction.x * force.magnitude}, ${force.direction.y * force.magnitude} | ${force.framesLeft}`, 200, 200 + 20 * i);
       this.playerForces.push(text);
       this.two.add(text);
       i++;
@@ -135,7 +146,7 @@ export class AppComponent {
 
   @HostListener('document:keydown', ['$event'])
   keyDown(event: KeyboardEvent): void {
-    let key = event.key;
+    let key = event.key.toLowerCase();
 
     switch(key) {
       case "a":
@@ -145,7 +156,10 @@ export class AppComponent {
         this.player.addForce(new Force("moveRight", new Vector(1, 0), 1, -1));
       break;
       case "w":
-        this.player.addForce(new Force("jump", new Vector(0, -1), PLAYER_JUMP_HEIGHT, 1));
+        if (!this.jumpPressed) {
+          this.player.jump();
+          this.jumpPressed = true;
+        }
       break;
       case "z":
         this.gameRunning = false;
@@ -158,7 +172,7 @@ export class AppComponent {
 
   @HostListener('document:keyup', ['$event'])
   keyUp(event: KeyboardEvent): void {
-    let key = event.key;
+    let key = event.key.toLowerCase();
 
     switch(key) {
       case "a":
@@ -168,6 +182,7 @@ export class AppComponent {
         this.player.forces.delete("moveRight");
       break;
       case "w":
+        this.jumpPressed = false;
       break;
     }
   }
