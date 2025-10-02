@@ -7,8 +7,8 @@ export abstract class Entity extends PhysicsEntity {
 
     abstract shape: Shape;
 
-    constructor(type: PhysicsType, restitution: number, width: number, height: number, position: Vector) {
-        super(type, restitution, width, height, position);
+    constructor(type: PhysicsType, width: number, height: number, position: Vector, mass: number = 1, friction: number = 0.1, restitution: number = 0) {
+        super(type, width, height, position, mass, friction, restitution);
     }
 
     // what should happen to an entity when it collides with this one 
@@ -18,8 +18,8 @@ export abstract class Entity extends PhysicsEntity {
         return this.shape;
     }
 
-    override applyMotion(): void {
-        super.applyMotion();
+    override applyForceMotion(): void {
+        super.applyForceMotion();
         this.shape.position = this.position; // updates the position of the entity on the canvas
     }
 

@@ -4,12 +4,14 @@ import { Rectangle } from "two.js/src/shapes/rectangle";
 import { Vector } from "two.js/src/vector";
 import { PhysicsEntity } from "../physics/PhysicsEntity";
 import { PhysicsType } from "../physics/PhysicsType";
-import { AppliedMotion } from "../physics/AppliedMotion";
 import { Shape } from "two.js/src/shape";
 import { Entity } from "../physics/Entity";
 import { Player } from "../physics/objects/Player";
 import { Wall } from "../physics/objects/Wall";
 import { PLAYER_JUMP_HEIGHT, PLAYER_MOVESPEED } from "../physics/Globals";
+import { Force } from "../physics/Force";
+import { Text } from "two.js/src/text";
+import { Heavy } from "../physics/objects/Heavy";
 
 @Component({
   selector: "app-root",
@@ -29,6 +31,7 @@ export class AppComponent {
   entityShapes: Map<number, Shape>;
 
   player: Player;
+  playerForces: Text[] = [];
 
   drawableEntityCount = 0;
 
@@ -48,37 +51,46 @@ export class AppComponent {
     this.staticEntities = [];
     this.entityShapes = new Map();
     this.player = new Player(new Vector(500, 400));
-    this.dynamicEntities.push(this.player);
   }
 
   ngOnInit() {
 
-    // this.two = this.two.appendTo(this.gameWindow.nativeElement);
-    this.two.add(this.player.getShape());
-
-    // add permanent gravity to the player
-    this.player.accelerationModifiers.set("gravity", new AppliedMotion("gravity", new Vector(0, this.gravity), -1));
-    this.dynamicEntities.push(this.player);
-
-    let wall = new Wall(new Vector(1000, 600), 2000, 50);
-    this.two.add(wall.getShape());
-    this.staticEntities.push(wall);
-
-    let wall2 = new Wall(new Vector(800, 450), 50, 50);
-    this.two.add(wall2.getShape());
-    this.staticEntities.push(wall2);
-
-    // this.restart();
+    this.restart();
     this.gameLoop();
   }
 
   restart() {
+    this.two.clear();
+    this.dynamicEntities = [];
+    this.staticEntities = [];
     this.player.acceleration.clear();
-    this.player.accelerationModifiers.clear();
-    this.player.accelerationModifiers.set("gravity", new AppliedMotion("gravity", new Vector(0, this.gravity), -1));
     this.player.velocity.clear();
-    this.player.velocityModifiers.clear();
-    this.player.position = new Vector(500, 500);
+    this.player.forces.clear();
+    this.playerForces.forEach(text => {
+      text.remove();
+    })
+    this.dynamicEntities.push(this.player);
+    this.player.position = new Vector(500, 400);
+    this.two.add(this.player.getShape());
+    this.player.addForce(new Force("gravity", new Vector(0, 1), this.gravity * this.player.mass, -1));
+
+    let test = new Player(new Vector(900, 500));
+    this.two.add(test.getShape());
+    test.addForce(new Force("gravity", new Vector(0, 1), this.gravity * test.mass, -1));
+      // test.addForce(new Force("lft", new Vector(-1, 0), 1, 1));
+
+    this.dynamicEntities.push(test);
+
+    let wall = new Wall(new Vector(500, 600), 2000, 50);
+    this.two.add(wall.getShape());
+    this.staticEntities.push(wall);
+
+    let wall2 = new Wall(new Vector(700, 550), 50, 50);
+    this.two.add(wall2.getShape());
+    this.staticEntities.push(wall2);
+
+
+    this.two.update();
   }
 
   gameLoop() {
@@ -86,20 +98,39 @@ export class AppComponent {
     // physics handling
     this.physicsOperations();
     // draw everything
+    this.playerForces.forEach(text => {
+      text.remove();
+    })
+
+    let velocity = this.player.velocity;
+    let velocityText = new Text(`velocity | ${velocity.x}, ${velocity.y}`, 100, 200);
+    this.playerForces.push(velocityText);
+    this.two.add(velocityText);
+    let i = 1;
+    this.player.forces.forEach(force => {
+      let text = new Text(`${force.id} | ${force.direction.x * force.magnitude}, ${force.direction.y * force.magnitude} | ${force.framesLeft}`, 100, 200 + 20 * i);
+      this.playerForces.push(text);
+      this.two.add(text);
+      i++;
+    })
 
     this.two.update();
     this.sleep(20).then(_ => { this.gameLoop() });
   }
 
   physicsOperations() {
-    this.dynamicEntities.forEach(dEntity => {
 
-      dEntity.applyMotion();
+    for (let i = 0; i < this.dynamicEntities.length; i++) {
+      this.dynamicEntities[i].applyForceMotion();
       
       this.staticEntities.forEach(sEntity => {
-        dEntity.resolveCollisionWith(sEntity);
+        this.dynamicEntities[i].resolveCollisionWith(sEntity);
       })
-    })
+
+      this.dynamicEntities.slice(i + 1, this.dynamicEntities.length).forEach(oEntity => {
+        this.dynamicEntities[i].resolveCollisionWith(oEntity);
+      })
+    }
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -108,13 +139,13 @@ export class AppComponent {
 
     switch(key) {
       case "a":
-        this.player.addVelocity(new AppliedMotion("moveLeft", new Vector(-PLAYER_MOVESPEED, 0), -1));
+        this.player.addForce(new Force("moveLeft", new Vector(-1, 0), 1, -1));
       break;
       case "d":
-        this.player.addVelocity(new AppliedMotion("moveRight", new Vector(PLAYER_MOVESPEED, 0), -1));
+        this.player.addForce(new Force("moveRight", new Vector(1, 0), 1, -1));
       break;
       case "w":
-        this.player.jump();
+        this.player.addForce(new Force("jump", new Vector(0, -1), PLAYER_JUMP_HEIGHT, 1));
       break;
       case "z":
         this.gameRunning = false;
@@ -131,16 +162,12 @@ export class AppComponent {
 
     switch(key) {
       case "a":
-        this.player.removeVelocity("moveLeft");
+        this.player.forces.delete("moveLeft");
       break;
       case "d":
-        this.player.removeVelocity("moveRight");
+        this.player.forces.delete("moveRight");
       break;
       case "w":
-        if (this.player.velocity.y < 0) {
-          this.player.removeVelocity("jump");
-          this.player.velocity.y = 0;
-        }
       break;
     }
   }

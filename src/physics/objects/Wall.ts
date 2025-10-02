@@ -9,7 +9,7 @@ export class Wall extends Entity{
     override shape: Shape;
 
     constructor(position: Vector = new Vector(0,0), width: number, height: number) {
-        super(PhysicsType.STATIC, WALL_RESTITUTION, width, height, position);
+        super(PhysicsType.STATIC, width, height, position, 0, 0.1, WALL_RESTITUTION);
 
         let shape = new Rectangle(position.x, position.y, width, height);
         shape.fill = WALL_COLOR;

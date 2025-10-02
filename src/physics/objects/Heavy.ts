@@ -7,13 +7,13 @@ import { Vector } from "two.js/src/vector";
 import { Wall } from "./Wall";
 import { PhysicsEntity } from "../PhysicsEntity";
 
-export class Player extends Entity{
+export class Heavy extends Entity{
     override shape: Shape;
     jumps: number;
     maxJumps: number;
 
     constructor(position: Vector = new Vector(0,0)) {
-        super(PhysicsType.DYNAMIC, PLAYER_SIZE, PLAYER_SIZE, position, 1, 0, 1);
+        super(PhysicsType.DYNAMIC, PLAYER_SIZE, PLAYER_SIZE, position, 5, 0, 1);
 
         let shape = new Rectangle(position.x, position.y, PLAYER_SIZE, PLAYER_SIZE);
         shape.fill = PLAYER_COLOR;

@@ -1,22 +1,22 @@
 import { Vector } from "two.js/src/vector";
 import { PhysicsType } from "./PhysicsType";
-import { AppliedMotion } from "./AppliedMotion";
+import { Force } from "./Force";
 import { STICKY_THRESHOLD } from "./Globals";
+import { Player } from "./objects/Player";
 
 export class PhysicsEntity {
 
     private type: PhysicsType;
 
-    // when an object collides with this one, how much of its velocity is preserved
-    // 0 = none, 1 = all
-    private restitution: number;
+    mass: number;
+    frictionCoefficient: number; // friction coefficient
+    restitution: number; // how bouncy is this object?
 
     position: Vector; // center of the rectangle
     velocity: Vector;
     acceleration: Vector;
 
-    velocityModifiers: Map<string, AppliedMotion>;
-    accelerationModifiers: Map<string, AppliedMotion>;
+    forces: Map<string, Force>;
 
     private width: number;
     private height: number;
@@ -24,9 +24,8 @@ export class PhysicsEntity {
     private halfWidth: number;
     private halfHeight: number;
 
-    constructor(type: PhysicsType, restitution: number, width: number, height: number, position: Vector) {
+    constructor(type: PhysicsType, width: number, height: number, position: Vector, mass: number = 1, friction: number = 0.2, restitution: number = 0) {
         this.type = type;
-        this.restitution = restitution;
         this.width = width;
         this.halfWidth = width * 0.5;
         this.height = height;
@@ -34,16 +33,14 @@ export class PhysicsEntity {
         this.position = position;
         this.velocity = new Vector(0, 0);
         this.acceleration = new Vector(0, 0);
-        this.velocityModifiers = new Map();
-        this.accelerationModifiers = new Map();
+        this.mass = mass;
+        this.frictionCoefficient = friction;
+        this.forces = new Map();
+        this.restitution = restitution;
     }
 
     getPhysicsType(): PhysicsType {
         return this.type;
-    }
-
-    getRestitution(): number {
-        return this.restitution;
     }
 
     getWidth(): number {
@@ -105,6 +102,9 @@ export class PhysicsEntity {
         if (!this.collidesWith(other)) {
             return false;
         }
+        if (other instanceof Player) {
+            console.log("player");
+        }
 
         // To find the side of entry calculate based on
         // the normalized sides
@@ -118,7 +118,7 @@ export class PhysicsEntity {
         // object approaching from corner
         if (Math.abs(absDX - absDY) < 0.1) {
 
-            if (dx < 0) {
+            if (dx > 0) {
                 this.position.x = other.getLeft() - this.halfWidth;
             }
             else {
@@ -132,51 +132,47 @@ export class PhysicsEntity {
             else {
                 this.position.y = other.getTop() - this.halfHeight;
             }   
-
-            // restitution here!
-                    // Randomly select a x/y direction to reflect velocity on
-            // if (Math.random() < .5) {
-
-            //     // Reflect the velocity at a reduced rate
-            //     player.vx = -player.vx * entity.restitution;
-
-            //     // If the object's velocity is nearing 0, set it to 0
-            //     // STICKY_THRESHOLD is set to .0004
-            //     if (abs(player.vx) < STICKY_THRESHOLD) {
-            //         player.vx = 0;
-            //     }
-            // } else {
-
-            //     player.vy = -player.vy * entity.restitution;
-            //     if (abs(player.vy) < STICKY_THRESHOLD) {
-            //         player.vy = 0;
-            //     }
-            // }
-            // randomly pick a direction to reflect in
-            if (Math.random() < 0.5) {
-                this.velocity.x *= -other.restitution;
-                if (Math.abs(this.velocity.x) < STICKY_THRESHOLD) {
-                    this.velocity.x = 0;
-                }
-            }
-            else {
-                this.velocity.y *= -other.restitution;
-                if (Math.abs(this.velocity.y) < STICKY_THRESHOLD) {
-                    this.velocity.y = 0;
-                }
-            }
         }
         else if (absDX > absDY) { // sides
-            if (dx < 0) {
+            if (dx > 0) {
                 this.position.x = other.getLeft() - this.halfWidth;
             }
             else {
                 this.position.x = other.getRight() + this.halfWidth;
             }
 
-            this.velocity.x *= -other.restitution;
-            if (Math.abs(this.velocity.x) < STICKY_THRESHOLD) {
-                this.velocity.x = 0;
+            // collisions - also does normal
+            if (Math.abs(this.velocity.x) < 0.05) {
+                return true;
+            }
+
+            let relativeVelocity = other.velocity.clone().sub(this.velocity);
+            let normal = other.position.clone().sub(this.position).normalize();
+
+            let velocityNormalized = relativeVelocity.dot(normal);
+
+            let momentum = this.mass * this.velocity.x + other.mass * other.velocity.x;
+            let totalMass = this.mass + other.mass;
+            let restitution = Math.min(this.restitution, other.restitution);
+
+            // let impulse = -(restitution + 1) * velocityNormalized;
+            // impulse /= 1/this.mass + 1/other.mass;
+
+            let myRatio = (1 / this.mass) / totalMass;
+            let myMomentum = momentum * myRatio * (1 + restitution);
+            if (this.velocity.x > 0) {
+                myMomentum = -myMomentum;
+            }
+            this.addForce(new Force("collisionX", new Vector(normal.x, 0), myMomentum, 1));
+
+
+            let otherRatio = (1 / other.mass) / totalMass;
+            let otherMomentum = momentum * otherRatio * (1 + restitution);
+            if (this.velocity.x < 0) {
+                otherMomentum = -otherMomentum;
+            }
+            if (otherRatio) {
+                other.addForce(new Force("collisionX", new Vector(normal.x, 0), otherMomentum, 1))
             }
         }
         else { // top or bottom
@@ -188,61 +184,63 @@ export class PhysicsEntity {
                 this.position.y = other.getTop() - this.halfHeight;
             }   
 
-            this.velocity.y *= -other.restitution;
-            if (Math.abs(this.velocity.y) < STICKY_THRESHOLD) {
-                this.velocity.y = 0;
+            // collisions
+            if (Math.abs(this.velocity.y) < 0.1) {
+                return true;
+            }
+
+            let momentum = this.mass * this.velocity.y + other.mass * other.velocity.y;
+            let totalMass = this.mass + other.mass;
+            let restitution = Math.min(this.restitution, other.restitution);
+
+            let myRatio = this.mass / totalMass;
+            let myMomentum = momentum * myRatio * (1 + restitution);
+            let direction = this.velocity.y / this.velocity.y
+            this.addForce(new Force("collisionY", new Vector(0, -direction), myMomentum, 1));
+
+            let otherRatio = other.mass / totalMass;
+            let otherMomentum = momentum * otherRatio * (1 + restitution);
+            let otherDirection = other.velocity.y / Math.abs(other.velocity.y)
+            other.addForce(new Force("collisionY", new Vector(0, -otherDirection), otherMomentum, 1))
+
+            // friction
+            let friction = other.frictionCoefficient * myMomentum / this.velocity.y;
+            if (Math.abs(this.velocity.x) > 0.1) {
+                this.addForce(new Force("frictionX", new Vector(-this.velocity.x, 0), friction, 1));
+            }
+            else {
+                this.velocity.x = 0;
             }
         }
 
         return true;
     }
 
-    applyMotion() {
+    applyForceMotion() {
 
-        this.acceleration = new Vector(0, 0);
-        this.accelerationModifiers.forEach((modifier, id) => {
-
-            this.acceleration.add(modifier.vector);
-            if (modifier.framesLeft > 0) {
-                modifier.framesLeft -= 1;
-                if (modifier.framesLeft == 0) {
-                    this.accelerationModifiers.delete(id);
-                }
-                else {
-                    this.accelerationModifiers.set(id, modifier);
-                }
+        this.acceleration.clear();
+        // v = v(t-1) + a*t
+        this.forces.forEach(force => {
+            this.acceleration.add(this.forceToAcceleration(force));
+            if (force.framesLeft == 1) {
+                this.forces.delete(force.id);
+            }
+            else if (force.framesLeft > 0) {
+                force.framesLeft--;
             }
         })
 
         this.velocity.add(this.acceleration);
-
-        this.velocityModifiers.forEach((modifier, id) => {
-
-            // this.velocity.add(modifier.vector);
-
-            if (modifier.framesLeft > 0) {
-                modifier.framesLeft -= 1;
-                this.velocityModifiers.set(id, modifier);
-            }
-
-            if (modifier.framesLeft == 0) {
-                this.removeVelocity(modifier.id);
-            }
-        })
-
         this.position.add(this.velocity);
+
     }
 
-    addVelocity(velocity: AppliedMotion) {
-        if (this.velocityModifiers.has(velocity.id)) { return; }
-        this.velocityModifiers.set(velocity.id, velocity);
-        this.velocity.add(velocity.vector);
+    private forceToAcceleration(force: Force): Vector {
+        return force.direction.multiplyScalar(force.magnitude).divideScalar(this.mass);
     }
 
-    removeVelocity(id: string) {
-        let velocity = this.velocityModifiers.get(id);
-        if (!velocity) { return; }
-        this.velocity.sub(velocity.vector);
-        this.velocityModifiers.delete(id);
+    addForce(force: Force) {
+        if (this.forces.has(force.id)) { return; }
+        this.forces.set(force.id, force);
     }
 }

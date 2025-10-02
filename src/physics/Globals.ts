@@ -1,11 +1,11 @@
 const PLAYER_COLOR = "aqua";
 const PLAYER_MOVESPEED: number = 5.0
-const PLAYER_JUMP_HEIGHT: number = 16.0
+const PLAYER_JUMP_HEIGHT: number = 12.0
 const PLAYER_SIZE: number = 25;
 const PLAYER_RESTITUTION: number = 1.0;
 const STICKY_THRESHOLD: number = 0.04
 
-const WALL_RESTITUTION: number = 0;
+const WALL_RESTITUTION: number = 0.4;
 const WALL_COLOR: string = "gray";
 
 export { 
