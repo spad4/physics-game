@@ -64,6 +64,10 @@ export class AppComponent {
     this.two.add(wall.getShape());
     this.staticEntities.push(wall);
 
+    let wall2 = new Wall(new Vector(800, 450), 50, 50);
+    this.two.add(wall2.getShape());
+    this.staticEntities.push(wall2);
+
     // this.restart();
     this.gameLoop();
   }
@@ -74,7 +78,7 @@ export class AppComponent {
     this.player.accelerationModifiers.set("gravity", new AppliedMotion("gravity", new Vector(0, this.gravity), -1));
     this.player.velocity.clear();
     this.player.velocityModifiers.clear();
-    this.player.position.clear();
+    this.player.position = new Vector(500, 500);
   }
 
   gameLoop() {
@@ -110,7 +114,7 @@ export class AppComponent {
         this.player.addVelocity(new AppliedMotion("moveRight", new Vector(PLAYER_MOVESPEED, 0), -1));
       break;
       case "w":
-        this.player.addVelocity(new AppliedMotion("jump", new Vector(0, -PLAYER_JUMP_HEIGHT), 40));
+        this.player.jump();
       break;
       case "z":
         this.gameRunning = false;

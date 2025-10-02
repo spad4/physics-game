@@ -12,7 +12,7 @@ export abstract class Entity extends PhysicsEntity {
     }
 
     // what should happen to an entity when it collides with this one 
-    abstract onCollideWith(entity: Entity): void;
+    abstract onCollideWith(entity: PhysicsEntity): void;
 
     getShape(): Shape {
         return this.shape;
@@ -21,6 +21,14 @@ export abstract class Entity extends PhysicsEntity {
     override applyMotion(): void {
         super.applyMotion();
         this.shape.position = this.position; // updates the position of the entity on the canvas
+    }
+
+    override resolveCollisionWith(other: PhysicsEntity): boolean {
+        let result = super.resolveCollisionWith(other);
+        if (result) {
+            this.onCollideWith(other);
+        }
+        return result;
     }
 
 }

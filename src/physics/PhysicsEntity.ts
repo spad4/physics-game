@@ -24,8 +24,6 @@ export class PhysicsEntity {
     private halfWidth: number;
     private halfHeight: number;
 
-    isOnGround: boolean = false;
-
     constructor(type: PhysicsType, restitution: number, width: number, height: number, position: Vector) {
         this.type = type;
         this.restitution = restitution;
@@ -103,9 +101,9 @@ export class PhysicsEntity {
         return true;
     }
 
-    resolveCollisionWith(other: PhysicsEntity) {
+    resolveCollisionWith(other: PhysicsEntity): boolean {
         if (!this.collidesWith(other)) {
-            return;
+            return false;
         }
 
         // To find the side of entry calculate based on
@@ -195,6 +193,8 @@ export class PhysicsEntity {
                 this.velocity.y = 0;
             }
         }
+
+        return true;
     }
 
     applyMotion() {
@@ -234,6 +234,7 @@ export class PhysicsEntity {
     }
 
     addVelocity(velocity: AppliedMotion) {
+        if (this.velocityModifiers.has(velocity.id)) { return; }
         this.velocityModifiers.set(velocity.id, velocity);
         this.velocity.add(velocity.vector);
     }
